@@ -1,68 +1,81 @@
-document.addEventListener("DOMContentLoaded", function () {
-  const taskInput = document.getElementById("taskInput");
-  const addTaskButton = document.getElementById("addTask");
-  const taskList = document.getElementById("taskList");
-
-  // Load tasks from storage when the popup is opened
-  chrome.storage.local.get("tasks", (data) => {
-    const savedTasks = data.tasks || [];
-    for (const task of savedTasks) {
-      addTaskToList(task);
-    }
-  });
-
-  addTaskButton.addEventListener("click", function () {
-    const taskText = taskInput.value;
-    if (taskText.trim() !== "") {
-      addTaskToList(taskText);
-
-      // Save updated tasks to storage
-      chrome.storage.local.get("tasks", (data) => {
-        const savedTasks = data.tasks || [];
-        savedTasks.push(taskText);
-        chrome.storage.local.set({ tasks: savedTasks });
-      });
-
-      taskInput.value = "";
-    }
-  });
-
-  // Helper function to add a task to the list
-  function addTaskToList(taskText) {
-    const taskItem = document.createElement("li");
-    taskItem.textContent = taskText;
-    taskList.appendChild(taskItem);
-  }
-const exportTasksButton = document.getElementById("exportTasks");
-
-  exportTasksButton.addEventListener("click", function () {
-    // Fetch saved tasks from storage
-    chrome.storage.local.get("tasks", (data) => {
-      const savedTasks = data.tasks || [];
-      
-      // Convert tasks to a plain text format
-      const textContent = savedTasks.join("\n");
-      
-      // Create a blob with the text content
-      const blob = new Blob([textContent], { type: "text/plain" });
-      
-      // Create a URL for the blob
-      const blobUrl = URL.createObjectURL(blob);
-      
-      // Create a link element for downloading
-      const downloadLink = document.createElement("a");
-      downloadLink.href = blobUrl;
-      downloadLink.download = "tasks.txt";
-      downloadLink.textContent = "Download Tasks";
-      downloadLink.style.display = "none";
-      
-      // Trigger a click on the link to start the download
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      
-      // Clean up the URL and link element
-      URL.revokeObjectURL(blobUrl);
-      document.body.removeChild(downloadLink);
-    });
-  });
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('add-task').addEventListener('click', addTaskFromInput);
+    loadTasks();
 });
+
+function addTaskFromInput() {
+    const taskValue = document.getElementById('new-task').value;
+    if (taskValue) {
+        addTask(taskValue);
+        document.getElementById('new-task').value = '';
+        saveTasks();
+    }
+}
+
+function addTask(taskValue, isCompleted = false) {
+    const ul = document.getElementById('task-list');
+    const li = document.createElement('li');
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = isCompleted;
+    checkbox.addEventListener('change', toggleTask);
+
+    const text = document.createElement('span');
+    text.textContent = taskValue;
+    text.style.textDecoration = isCompleted ? 'line-through' : 'none';
+
+    const editButton = document.createElement('button');
+    editButton.textContent = 'Edit';
+    editButton.addEventListener('click', editTask);
+
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = 'Delete';
+    deleteButton.addEventListener('click', deleteTask);
+
+    li.appendChild(checkbox);
+    li.appendChild(text);
+    li.appendChild(editButton);
+    li.appendChild(deleteButton);
+
+    ul.appendChild(li);
+
+}
+
+function saveTasks() {
+    const tasks = [];
+    document.querySelectorAll('#task-list li').forEach(function (taskLi) {
+        const text = taskLi.querySelector('span').textContent;
+        const isCompleted = taskLi.querySelector('input').checked;
+        tasks.push({ text, isCompleted });
+    });
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+}
+
+function loadTasks() {
+    const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+    tasks.forEach(function (task) {
+        addTask(task.text, task.isCompleted);
+    });
+}
+
+function toggleTask(event) {
+    const text = event.target.nextElementSibling;
+    text.style.textDecoration = event.target.checked ? 'line-through' : 'none';
+    saveTasks();
+}
+
+function deleteTask(event) {
+    const li = event.target.parentNode;
+    li.parentNode.removeChild(li);
+    saveTasks();
+}
+
+function editTask(event) {
+    const textSpan = event.target.previousElementSibling;
+    const newText = prompt("Edit Your Task", textSpan.textContent);
+    if (newText !== null) {
+        textSpan.textContent = newText;
+        saveTasks();
+    }
+}
